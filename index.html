@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Equation App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body{
+font-family: Arial;
+text-align:center;
+margin-top:50px;
+}
+
+input{
+font-size:20px;
+width:80px;
+margin:10px;
+}
+
+button{
+font-size:20px;
+padding:10px 20px;
+}
+
+#result{
+font-size:30px;
+margin-top:20px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Equation Calculator</h1>
+
+<input id="a" type="number" placeholder="a">
++
+<input id="b" type="number" placeholder="b">
+
+<br><br>
+
+<button onclick="calculate()">Calculate</button>
+
+<div id="result"></div>
+
+<script>
+function calculate(){
+
+let a = Number(document.getElementById("a").value);
+let b = Number(document.getElementById("b").value);
+
+let result = a + b;
+
+document.getElementById("result").innerText = result;
+
+}
+</script>
+
+</body>
+</html>
