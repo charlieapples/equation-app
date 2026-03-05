@@ -1,103 +1,288 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Formula Lab</title>
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- PWA manifest -->
+  <link rel="manifest" href="manifest.json">
 
-<title>Equation Builder</title>
+  <!-- math.js for robust math parsing/evaluation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
 
-<style>
-
-body{
-font-family:Arial;
-text-align:center;
-margin-top:40px;
-}
-
-input{
-font-size:18px;
-padding:8px;
-margin:6px;
-}
-
-button{
-font-size:18px;
-padding:8px 15px;
-margin:10px;
-}
-
-#savedEquations{
-margin-top:30px;
-}
-
-</style>
-
+  <style>
+    :root{--bg:#071226;--card:#0f1720;--muted:#9ca3af;--accent:#06b6d4;--text:#e6eef6}
+    *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+    body{margin:0;background:linear-gradient(180deg,#071226,#071826);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:18px}
+    header{width:100%;max-width:900px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    h1{margin:0;font-size:20px}
+    button{background:var(--accent);color:#042028;border:0;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+    button.outline{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.06)}
+    main{width:100%;max-width:900px;display:grid;grid-template-columns:320px 1fr;gap:14px}
+    .card{background:rgba(255,255,255,0.03);padding:14px;border-radius:14px}
+    .list{list-style:none;padding:0;margin:0}
+    .list li{padding:10px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;background:rgba(255,255,255,0.02)}
+    .muted{color:var(--muted);font-size:13px;margin-top:8px}
+    .hidden{display:none}
+    #editor input, #calculator input{width:100%;padding:8px;margin-top:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:var(--text)}
+    .row{display:flex;gap:8px;margin-top:10px}
+    #inputs{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+    .inputRow{display:flex;gap:8px;align-items:center}
+    .inputRow label{min-width:120px}
+    .inputRow input{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:var(--text)}
+    .result{font-size:18px;margin-top:12px;padding:12px;border-radius:8px;background:linear-gradient(90deg, rgba(6,182,212,0.08), rgba(6,182,212,0.04));color:var(--accent)}
+    footer{margin-top:20px;color:var(--muted);font-size:12px}
+    @media(max-width:900px){main{grid-template-columns:1fr}}
+  </style>
 </head>
-
 <body>
+  <header>
+    <h1>Formula Lab</h1>
+    <button id="newBtn" title="New formula">＋ New</button>
+  </header>
 
-<h1>Equation Builder</h1>
+  <main id="app">
+    <section id="formulaList" class="card">
+      <h2>Saved formulas</h2>
+      <ul id="formulasUl" class="list"></ul>
+      <p id="noFormulas" class="muted">No formulas saved yet — press “New” to add one.</p>
+    </section>
 
-<p>Write equation using x</p>
+    <section id="editor" class="card hidden">
+      <h2 id="editorTitle">New formula</h2>
+      <label>Formula (e.g. <code>Y = X + Z</code> or <code>X + Z</code>)</label>
+      <input id="formulaInput" placeholder="Y = X + Z or X + Z" />
+      <label>Display name (optional)</label>
+      <input id="formulaName" placeholder="Friendly name (e.g. Percentage change)" />
+      <div class="row">
+        <button id="saveFormula">Save</button>
+        <button id="cancelEdit" class="outline">Cancel</button>
+      </div>
+      <div id="editorMsg" class="muted"></div>
+    </section>
 
-<input id="equation" placeholder="Example: 3*x+4">
+    <section id="calculator" class="card hidden">
+      <h2 id="calcTitle"></h2>
+      <div id="inputs"></div>
+      <div class="row">
+        <button id="calcBtn">Calculate</button>
+        <button id="saveAsNew" class="outline">Save as new</button>
+      </div>
+      <p id="result" class="result"></p>
+    </section>
+  </main>
 
-<br>
+  <footer>
+    <small>Built with math.js · PWA-ready · Saved in your browser</small>
+  </footer>
 
-<input id="xvalue" type="number" placeholder="x value">
+  <script>
+  /* minimal Formula Lab JS (single file) */
+  const STORAGE_KEY = 'formulab_saved';
+  const formulasUl = document.getElementById('formulasUl');
+  const noFormulas = document.getElementById('noFormulas');
+  const newBtn = document.getElementById('newBtn');
+  const editor = document.getElementById('editor');
+  const editorTitle = document.getElementById('editorTitle');
+  const formulaInput = document.getElementById('formulaInput');
+  const formulaName = document.getElementById('formulaName');
+  const saveFormula = document.getElementById('saveFormula');
+  const cancelEdit = document.getElementById('cancelEdit');
+  const editorMsg = document.getElementById('editorMsg');
 
-<br>
+  const calculator = document.getElementById('calculator');
+  const calcTitle = document.getElementById('calcTitle');
+  const inputsDiv = document.getElementById('inputs');
+  const calcBtn = document.getElementById('calcBtn');
+  const resultP = document.getElementById('result');
+  const saveAsNewBtn = document.getElementById('saveAsNew');
 
-<button onclick="calculate()">Calculate</button>
-<button onclick="saveEquation()">Save Equation</button>
+  let formulas = [];
+  let activeFormula = null;
 
-<h2 id="result"></h2>
+  function load() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      try { formulas = JSON.parse(raw) } catch(e){ formulas = []; }
+    } else formulas = [];
+    renderList();
+  }
+  function persist(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(formulas)); }
 
-<div id="savedEquations"></div>
+  function renderList(){
+    formulasUl.innerHTML = '';
+    if (!formulas.length) { noFormulas.style.display = 'block'; return; }
+    noFormulas.style.display = 'none';
+    formulas.forEach(f=>{
+      const li = document.createElement('li');
+      const meta = document.createElement('div'); meta.className='meta';
+      const title = document.createElement('strong'); title.textContent = f.name || f.raw;
+      const sub = document.createElement('span'); sub.className='muted'; sub.textContent = f.raw;
+      meta.appendChild(title); meta.appendChild(sub);
+      const actions = document.createElement('div');
 
-<script>
+      const open = document.createElement('button'); open.textContent='Open'; open.style.padding='6px 8px';
+      open.onclick = ()=> openFormula(f.id);
+      const edit = document.createElement('button'); edit.textContent='Edit'; edit.style.marginLeft='6px';
+      edit.className = 'outline';
+      edit.onclick = ()=> editFormula(f.id);
+      const del = document.createElement('button'); del.textContent='Delete'; del.style.marginLeft='6px';
+      del.className = 'outline';
+      del.onclick = ()=> { if(confirm('Delete formula?')) { formulas = formulas.filter(x=>x.id!==f.id); persist(); renderList(); }};
+      actions.appendChild(open); actions.appendChild(edit); actions.appendChild(del);
 
-let equations = JSON.parse(localStorage.getItem("equations")) || [];
+      li.appendChild(meta);
+      li.appendChild(actions);
+      formulasUl.appendChild(li);
+    });
+  }
 
-function calculate(){
+  function uid(){ return Math.random().toString(36).slice(2,9) }
 
-let eq = document.getElementById("equation").value;
+  function parseFormula(raw){
+    let outVar = null;
+    let expr = raw.trim();
+    const eqIndex = expr.indexOf('=');
+    if (eqIndex !== -1) {
+      outVar = expr.slice(0,eqIndex).trim();
+      expr = expr.slice(eqIndex+1).trim();
+    }
+    let vars = [];
+    try {
+      const node = math.parse(expr);
+      node.traverse(function (n) {
+        if (n && n.isSymbolNode) {
+          const name = n.name;
+          const exclude = ['pi','e','i','ans'];
+          if (!exclude.includes(name) && !vars.includes(name)) vars.push(name);
+        }
+      });
+      const funcs = ['sin','cos','tan','log','ln','sqrt','abs','pow','max','min','round','floor','ceil','exp'];
+      vars = vars.filter(v => !funcs.includes(v));
+    } catch(e){
+      const names = expr.match(/[A-Za-z]\w*/g) || [];
+      const funcs = ['sin','cos','tan','log','ln','sqrt','abs','pow','max','min','round','floor','ceil','exp','pi','e'];
+      vars = names.filter(n=>!funcs.includes(n));
+    }
+    return { outVar, expr, vars };
+  }
 
-let x = Number(document.getElementById("xvalue").value);
+  function openEditor(mode='new', data){
+    editorTitle.textContent = mode === 'edit' ? 'Edit formula' : 'New formula';
+    editor.classList.remove('hidden');
+    calculator.classList.add('hidden');
+    formulaInput.value = data ? data.raw : '';
+    formulaName.value = data ? data.name : '';
+    editorMsg.textContent = '';
+  }
+  newBtn.onclick = ()=> openEditor('new');
+  cancelEdit.onclick = ()=> { editor.classList.add('hidden'); }
 
-let result = eval(eq.replaceAll("x",x));
+  saveFormula.onclick = ()=>{
+    const raw = formulaInput.value.trim();
+    if(!raw){ editorMsg.textContent = 'Please enter a formula.'; return; }
+    const name = formulaName.value.trim();
+    const parsed = parseFormula(raw);
+    if(!parsed.expr){ editorMsg.textContent = 'Could not parse formula. Example: Y = X + Z or X + Z'; return; }
+    const entry = { id: uid(), name: name || parsed.outVar || parsed.expr, raw, outVar: parsed.outVar || null, expr: parsed.expr, vars: parsed.vars };
+    formulas.unshift(entry);
+    persist();
+    renderList();
+    editor.classList.add('hidden');
+    openFormula(entry.id);
+  };
 
-document.getElementById("result").innerText = result;
+  function editFormula(id){
+    const f = formulas.find(x=>x.id===id);
+    if(!f) return;
+    openEditor('edit', f);
+    saveFormula.onclick = ()=>{
+      const raw = formulaInput.value.trim();
+      if(!raw) return;
+      const parsed = parseFormula(raw);
+      const name = formulaName.value.trim();
+      if(!parsed.expr){ editorMsg.textContent = 'Could not parse formula.'; return; }
+      const updated = { id, name: name || parsed.outVar || parsed.expr, raw, outVar: parsed.outVar || null, expr: parsed.expr, vars: parsed.vars };
+      formulas = formulas.map(x => x.id===id ? updated : x);
+      persist();
+      renderList();
+      editor.classList.add('hidden');
+      openFormula(id);
+      saveFormula.onclick = defaultSaveHandler;
+    };
+  }
+  const defaultSaveHandler = saveFormula.onclick;
 
-}
+  function openFormula(id){
+    const f = formulas.find(x=>x.id===id);
+    if(!f) return;
+    activeFormula = f;
+    editor.classList.add('hidden');
+    calculator.classList.remove('hidden');
+    calcTitle.textContent = f.name;
+    renderInputs(f);
+    resultP.textContent = '';
+  }
 
-function saveEquation(){
+  function renderInputs(f){
+    inputsDiv.innerHTML = '';
+    if(!f.vars || !f.vars.length){
+      const p = document.createElement('p'); p.className='muted'; p.textContent = 'No variables detected. You can still calculate the expression if you add constants or edit it.';
+      inputsDiv.appendChild(p); return;
+    }
+    f.vars.forEach(v=>{
+      const row = document.createElement('div'); row.className='inputRow';
+      const label = document.createElement('label'); label.textContent = v;
+      const input = document.createElement('input'); input.type='number'; input.step='any'; input.id = 'var_'+v;
+      input.placeholder = v;
+      row.appendChild(label); row.appendChild(input);
+      inputsDiv.appendChild(row);
+    });
+  }
 
-let eq = document.getElementById("equation").value;
+  calcBtn.onclick = ()=>{
+    if(!activeFormula) return;
+    const scope = {};
+    activeFormula.vars.forEach(v=>{
+      const el = document.getElementById('var_'+v);
+      const val = el ? parseFloat(el.value) : NaN;
+      scope[v] = isNaN(val) ? undefined : val;
+    });
+    try {
+      const compiled = math.compile(activeFormula.expr);
+      const res = compiled.evaluate(scope);
+      if(activeFormula.outVar){
+        resultP.innerHTML = `<strong>${activeFormula.outVar} = </strong> ${formatRes(res)}`;
+      } else {
+        resultP.innerHTML = `<strong>Result: </strong> ${formatRes(res)}`;
+      }
+    } catch(e){
+      resultP.innerHTML = `<span style="color:#ff7676">Error: ${e.message}</span>`;
+    }
+  };
 
-equations.push(eq);
+  saveAsNewBtn.onclick = ()=>{
+    if(!activeFormula) return;
+    openEditor('new', activeFormula);
+    formulaInput.value = activeFormula.raw;
+    formulaName.value = activeFormula.name;
+  };
 
-localStorage.setItem("equations",JSON.stringify(equations));
+  function formatRes(r){
+    if (typeof r === 'number') return Number.isFinite(r) ? r : String(r);
+    if (Array.isArray(r)) return '[' + r.map(formatRes).join(', ') + ']';
+    return JSON.stringify(r);
+  }
 
-displayEquations();
+  /* service worker registration */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('service-worker.js').catch(console.error);
+    });
+  }
 
-}
-
-function displayEquations(){
-
-let div = document.getElementById("savedEquations");
-
-div.innerHTML = "<h3>Saved Equations</h3>";
-
-equations.forEach(e=>{
-div.innerHTML += `<p>${e}</p>`;
-});
-
-}
-
-displayEquations();
-
-</script>
-
+  load();
+  </script>
 </body>
 </html>
