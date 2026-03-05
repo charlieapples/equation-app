@@ -1,59 +1,102 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Equation App</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<title>Equation Builder</title>
+
 <style>
+
 body{
-font-family: Arial;
+font-family:Arial;
 text-align:center;
-margin-top:50px;
+margin-top:40px;
 }
 
 input{
-font-size:20px;
-width:80px;
-margin:10px;
+font-size:18px;
+padding:8px;
+margin:6px;
 }
 
 button{
-font-size:20px;
-padding:10px 20px;
+font-size:18px;
+padding:8px 15px;
+margin:10px;
 }
 
-#result{
-font-size:30px;
-margin-top:20px;
+#savedEquations{
+margin-top:30px;
 }
+
 </style>
+
 </head>
 
 <body>
 
-<h1>Equation Calculator</h1>
+<h1>Equation Builder</h1>
 
-<input id="a" type="number" placeholder="a">
-+
-<input id="b" type="number" placeholder="b">
+<p>Write equation using x</p>
 
-<br><br>
+<input id="equation" placeholder="Example: 3*x+4">
+
+<br>
+
+<input id="xvalue" type="number" placeholder="x value">
+
+<br>
 
 <button onclick="calculate()">Calculate</button>
+<button onclick="saveEquation()">Save Equation</button>
 
-<div id="result"></div>
+<h2 id="result"></h2>
+
+<div id="savedEquations"></div>
 
 <script>
+
+let equations = JSON.parse(localStorage.getItem("equations")) || [];
+
 function calculate(){
 
-let a = Number(document.getElementById("a").value);
-let b = Number(document.getElementById("b").value);
+let eq = document.getElementById("equation").value;
 
-let result = a + b;
+let x = Number(document.getElementById("xvalue").value);
+
+let result = eval(eq.replaceAll("x",x));
 
 document.getElementById("result").innerText = result;
 
 }
+
+function saveEquation(){
+
+let eq = document.getElementById("equation").value;
+
+equations.push(eq);
+
+localStorage.setItem("equations",JSON.stringify(equations));
+
+displayEquations();
+
+}
+
+function displayEquations(){
+
+let div = document.getElementById("savedEquations");
+
+div.innerHTML = "<h3>Saved Equations</h3>";
+
+equations.forEach(e=>{
+div.innerHTML += `<p>${e}</p>`;
+});
+
+}
+
+displayEquations();
+
 </script>
 
 </body>
